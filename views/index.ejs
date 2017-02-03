@@ -39,17 +39,24 @@
           <a class="navbar-brand" href="#">班级说说</a>
         </div>
 
-        <div id="navbar" class="navbar-collapse collapse">
+   
+
+          <div id="navbar" class="navbar-collapse collapse">
             <ul class="nav navbar-nav">
                 <li class="active"><a href="#">全部说说</a></li>
                 <li><a href="#">我的说说</a></li>
             </ul>  
-
             <ul class="nav navbar-nav navbar-right">
-                <li><a href="#">注册</a></li>
-                <li><a href="#">登录</a></li>
+                <% if(!login){  %>
+                    <li><a href="/regist">注册</a></li>
+                    <li><a href="#">登录</a></li>
+                <% }else{  %>
+                    <li><a href="#">欢迎<%= username %></a></li>
+                    <li><a href="#">设置个人信息</a></li>
+                <% } %>
             </ul>
-        </div><!--/.navbar-collapse -->
+         </div>
+        
       </div>
     </nav>
 
