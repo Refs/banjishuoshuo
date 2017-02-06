@@ -435,3 +435,89 @@ exports.showIndex = function(req,res,next){
 ```
 
 > 正常的听课流程，1.都是先听一边，有个模糊的思路；2.再仔细思考一下形成具体的思路；3.再闭着眼睛（不管对不对）将完整的逻辑写出来；4.再放到程序中去调试；5.再对比参考答案以优化与改进；
+
+### v5.0  ejs include动态共享页面
+
+在各个页面中，ejs的上边框，重用性太高，index/login/regist.ejs页面都使用这个上边框，若修改其中一个页面的上边框，则其它页面都要修改，这在使用过程中，会有诸多不便，所以现在要用ejs include来共享上边框；
+
+在各个页面中，**相似有要有区别**的使用方式；这是一个哲学；**要有相同：**每页面都有这一部分内容，所有就没有必要每个页面都去写这一部分的内容，这样做一是写起来方便，二是修改起来比较方便，修改一个页面相当于修改全部；  要有区别，如**描述当前所在位置时**主页的active按钮在“全部说说”，而登陆与注册页面的active就应该 登陆 与 注册上； 即要有静态的相同，又要有动态的不同，就是这样一个需求
+
+新建一个文件夹，header.ejs里面写入要共享的内容； 在要使用共享内容的模板页面，通过<%- include relativePath %> 的语法将header.ejs引入，<%- 表示将未转义的值输出到模板中，使用其防止被双重转义； 而在各个页面中，表示页面当前位置的active是不相同的，所以这一部分应该是动态的，这一部分在页面模板上应体现为**变量**；后台服务器在渲染时，应去迎合这个变量，根据要渲染的页面but哦那个，为这个变量赋予不同的值，前台再根据后台传过来的值做判定，以确定active的位置； 这是老师的方法，虽然可行，但这种方法已经过时了，ejs关于include有更好的接口：<%- include("relativePath",{})%> 即在include的时候，就已经将不同的数据传输过去的了；
+
+```js
+
+    //1.新建header.ejs并写入要共享的内容；并将动态的内容（如表示页面当前位置的active）设置为变量
+    <nav class="navbar navbar-inverse navbar-fixed-top" role="navigation">
+      <div class="container">
+        <div class="navbar-header">
+          <button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#navbar" aria-expanded="false" aria-controls="navbar">
+            <span class="sr-only">Toggle navigation</span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+            <span class="icon-bar"></span>
+          </button>
+          <a class="navbar-brand" href="#">班级说说</a>
+        </div>
+
+          <div id="navbar" class="navbar-collapse collapse">
+            <ul class="nav navbar-nav">
+                <li <%if(active == "全部说说"){%>
+                        class = "active"
+                    <%}%>
+                ><a href="#">全部说说</a></li>
+                <li <%if(active == "我的说说"){%>
+                        class = "active"
+                    <%}%>
+                ><a href="#">我的说说</a></li>
+            </ul>  
+
+            <ul class="nav navbar-nav navbar-right">
+                <% if(!login){  %>
+                    <li <%if(active == "注册"){%>
+                        class = "active"
+                    <%}%>
+                    ><a href="/regist">注册</a></li>
+                    <li <%if(active == "登陆"){%>
+                        class = "active"
+                    <%}%>
+                    
+                    ><a href="/login">登录</a></li>
+                <% }else{  %>
+                    <li><a href="#">欢迎<%= username %></a></li>
+                    <li><a href="#">设置个人信息</a></li>
+                <% } %>
+            </ul>
+         </div>
+        
+      </div>
+    </nav>
+
+    // 2.不同的页面通过include的方法引入header.js ，在差异处理上，通过json向header.js传入不同的值，从而获得不同的解析内容；
+    //主页
+    <%- include("header.ejs",{"active":"全部说说"})%> 
+    //login页
+    <%- include("header.ejs",{"active":"登陆"})%> 
+    //regist页
+    <%- include("header.ejs",{"active":"注册"})%> //自己这样做，等于是在include的时候，解析
+
+    //3.然后在render的时候传入本页面中的变量，即使用header.ejs的页面，如login.ejs中
+        res.render("login.ejs",{
+            "login":req.session.login == "1" ? true : false,
+            "username":req.session.login = "1" ? req.session.username : ""
+        })
+
+
+
+
+    // 4.老师的做法是，本页面与引用的的页面统一解析填充
+    //引入共享ejs
+    <% include header.ejs %>
+    //本页面与引用的的页面统一解析填充
+    res.render("login.ejs",{
+            "login":req.session.login == "1" ? true : false,
+            "username":req.session.login = "1" ? req.session.username : "",
+            "active":"登陆"
+    })
+    //其它页面和主页的解析方式是一样的
+```
+

@@ -20,7 +20,10 @@ exports.showIndex = function(req,res,next){
 
 // 显示注册页面
 exports.showRegist = function(req,res,next){
-    res.render("regist");
+    res.render("regist",{
+         "login":req.session.login == "1" ? true : false,
+         "username":req.session.login = "1" ? req.session.username : ""
+    });
 }
 
 //处理用户注册
@@ -62,7 +65,10 @@ exports.doRegist = function(req,res,next){
 
 //登陆业务
 exports.showLogin = function(req,res,next){
-    res.render("login");
+    res.render("login",{
+            "login":req.session.login == "1" ? true : false,
+            "username":req.session.login = "1" ? req.session.username : ""
+    });
 }
 
  
