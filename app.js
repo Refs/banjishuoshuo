@@ -21,6 +21,10 @@ app.get("/",router.showIndex);
 
 app.get("/regist",router.showRegist)
 
+app.get("/login",router.showLogin)
+
+app.post("/login",router.doLogin)
+
 app.post("/doRegist",router.doRegist)
 //监听端口
 app.listen(3000);

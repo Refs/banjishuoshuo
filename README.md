@@ -84,7 +84,7 @@
     ```
 * 在views文件夹中创建注册页面regist.ejs; 这样在主页面点击注册按钮，就会显示注册页面；紧接着就是去bootstrap中去扒注册表单的模板；
 
-```
+```js
         <form role="form" class="col-md-6">
             <h1>欢迎注册</h1>                
             <div class="form-group">
@@ -309,3 +309,129 @@ exports.showIndex = function(req,res,next){
 
 
  > 一点感悟，自己要做什么，首先改的都是视图层，想看一下改的成功不成功，有没有那个效果，都是先传一个假数据，若达到预先的效果，后面就专注于数据的获取；这一点体悟，很想自己以前学习javascript时，做运动或交互效果时，都是那个css数据去试，看看有没有效果；
+
+### v4.0 登陆业务 
+
+> 保持一个正确的做题习惯，**方正以前再做题的时候，总是先要思考一下，然后做出来之后，和参考的思路进行比对** 思路一定要清晰； 现在自己一直迟疑不定，就是自己面对自己所要做的事情，没有思考清楚，思考清晰之后，自己自然就会去做了；**做一个题能难死的症结所在；**
+
+**与用户的第一次交互：**用户交互的入口是主页面的登陆按钮，用户点击之后会发送一个请求，服务器会接受到这个请求，并且会将登陆页面渲染出来；（全栈开发考虑的就是前后台的交互）；  因为上了那么多年网，所以后台的逻辑很简单，且很固化；
+
+```js
+    //1.主页面中要有用户提交登陆请求的入口；点击登陆按钮后，要能向后台发送登陆的请求；
+    <ul class="nav navbar-nav navbar-right">
+        <% if(!login){  %>
+            <li><a href="/regist">注册</a></li>
+            <li><a href="/login">登录</a></li>
+        <% }else{  %>
+            <li><a href="#">欢迎<%= username %></a></li>
+            <li><a href="#">设置个人信息</a></li>
+        <% } %>
+    </ul>
+    //2.后台服务器首先要能接收到前台发送过来的请求，并能相应处理；随后将登陆页面渲染出来；
+    app.get("/login",router.login);
+
+    exports.login = function(req,res,next){
+        res.render("login");
+    }
+    //3.做一个前台模板，此时可以先随便创建一个login.ejs文件，以调试上述步骤；`html:5 tap  h1{我是测试页面} tap`而一般登陆页面都是直接拿着注册页面改的；先复制一份注册页面在浏览器中打开，边改边调试，体验还是很愉快的； **以前的体验是编写html文件，利用浏览器打开调试，现在的在后台服务器中渲染一个ejs文件，而后便修改这个文件内容，边刷新浏览器，体验和之前一样，这就回到了以前那种感觉，及写前台ejs模板并不是闭着眼睛写的，而是可视化的边写边看**
+    
+
+
+```
+**与用户的第二次交互**：用户填写表单，填写完毕后点击登陆，前端js监听用户的登陆动作，当用户点击登陆按钮时，通过ajax的post请求，并携带用户表单数据；   后台响应并接受前台的post请求及其数据， 接受到前台数据之后，以前台填写的username作为检索条件去查询数据库，若检索的过程中出错则返回-3系统错误，检索到的数组长度为0则说明用户名不存在，则返回“-1”, 检索到的结果数组长度不为0，则接着去比对用户输入的密码与数据库中的密码，检索之前需要对密码进行md5处理，若比对不相同，则返回"-2"用户密码错误，若比对相同则加入session后返回“1”成功登陆，  前端ajax响应后台的返回，渲染前端警告框underscore模板，根据不同的服务器返回数据，填入不同的模板数据；
+
+```js
+    //用户点击login按钮，发送post 请求，携带表单数据
+    $("#login").click(function(){
+        $.post("/login",{"username":$("#username").val(),"password":$("#password").val()},function(result){
+
+        })
+    })
+
+
+    //1.1.后台接收前台的post请求
+    app.post("/login",router.doLogin)
+
+    //1.2.后台响应前台的post请求
+    exports.doLogin = function(req,res,next){
+        //1.3.后台接收前台表单数据
+        var form = new formidable.IncomingForm();
+        form.parse(req, function(err, fields) {
+            var username = fields.username;
+            var password = fields.password;
+            //1.4.根据前台数据，检索数据库
+            db.find("users",{"username":username},function(err,result){
+                //系统错误
+                if(err){
+                    res.json({"result":"-3"})
+                    return;
+                };
+                //用户名不存在
+                if(result.length == 0){
+                    res.json({"result":"-1"})
+                    return;
+                }
+                //转化密码为md5
+                password = md5(md5(password)+"2");
+                if (password == result[0].password){
+                    //成功登陆
+                    res.json({"result":"1"})
+                    return;
+                }else{
+                    //用户密码错误
+                    res.json({"result":"-2"})
+                }
+            })
+
+        })
+    }
+
+ //3.前台ajax响应后台的请求返回
+
+    //3.1 前台underscore模板
+    <script src="./public/js/underscore.js"></script>
+    <script type="text/template" id="moban">
+        <div class="alert alert-danger col-md-6" role="alert">
+            <a href="#" class="alert-link">{{= alert_desc }}</a>
+        </div>
+    </script>
+    //3.2 接收到请求返回时，响应返回 -- 渲染模板  此处应随便找一段内容调试一下前端模板，肯能否正确渲染；而后才考虑其内容以及后端的数据； 提示结果不是看页面屏幕上有没有显示，而是要看其html源码，看有没有加上去
+    <script type="text/template" id="moban">
+        <h1>我是前端模板</h1>
+    </script>
+
+    
+
+    //3.5 给表单控件加事件，获取焦点是，清空failed的内容。
+    $("input").focus(function(){
+             $("#failed").html("");
+    })
+
+    $("#login").click(function(){
+        $.post("/login",{"username":$("#username").val(),"password":$("#password").val()},function(result){
+            //3.3.有错误则渲染警告框
+            var compiled = _.template($("#moban").html());
+
+            if(result.result = "-3"){
+                var html = compiled({"alert_desc":"系统错误"});
+                $("#failed").append($(html));
+                return;
+            }else if(result.result = "-2"){
+                var html = compiled({"alert_desc":"用户密码错误"});
+                $("#failed").append($(html));
+                return;
+            }else if(result.result = "-1"){
+                var html = compiled({"alert_desc":"用户名不存在"});
+                $("#failed").append($(html));
+                return;
+            }
+            //3.4无错误则重定向到首页
+            alert("登陆成功，点击回到首页面");
+            window.location = "/";
+            
+        })
+    })
+
+```
+
+> 正常的听课流程，1.都是先听一边，有个模糊的思路；2.再仔细思考一下形成具体的思路；3.再闭着眼睛（不管对不对）将完整的逻辑写出来；4.再放到程序中去调试；5.再对比参考答案以优化与改进；
