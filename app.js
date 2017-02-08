@@ -14,6 +14,8 @@ app.set("view engine","ejs");
 
 //静态页面
 app.use(express.static("./public"));
+app.use("/avartar/",express.static("./avartar"));
+
 
 //路由表
 app.get("/",router.showIndex);
@@ -27,4 +29,13 @@ app.post("/login",router.doLogin)
 
 app.post("/doRegist",router.doRegist)
 //监听端口
+app.get("/jqform",router.jqform)
+app.post("/jqform",router.dojqform)
+
+app.get("/setavartar",router.showSetAvartar)
+app.post("/dosetavartar",router.doSetAvartar)
+
+app.get("/cut",router.showCut)
+app.get("/docut",router.doCut)
+
 app.listen(3000);

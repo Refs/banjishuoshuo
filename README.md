@@ -469,6 +469,10 @@ exports.showIndex = function(req,res,next){
                         class = "active"
                     <%}%>
                 ><a href="#">我的说说</a></li>
+                <li <%if(active == "成员列表"){%>
+                        class = "active"
+                    <%}%>
+                ><a href="#">成员列表</a></li>
             </ul>  
 
             <ul class="nav navbar-nav navbar-right">
@@ -520,4 +524,271 @@ exports.showIndex = function(req,res,next){
     })
     //其它页面和主页的解析方式是一样的
 ```
+
+### v6.0 设置个人资料 之设置头像
+
+ajax提交文件表单，可以利用jquery-form.js, 
+
+
+
+设置头像这一bu最难，
+* **初始头像**刚开始可以给每个用户都设置一个初始头像，图片文件名为moren.jpg，放到/avartar目录里面，然后将avartar目录给静态出来`app.use("/avartar",express.static("./avartar"))`因为以后要用来存放图片，名字很多容易造成域名冲突，所以要价格前缀
+
+* **头像存储**将所有的注册用户，在注册的时候，都需要强行的在数据库中绑定一个不能改的field : avartar ,avartar中存储的是路径，刚开始路径中直接存moren.jpg就就行了（这是默认的）；这样每一位注册用户，在数据库中对应的document,就会多一个avartar属性，此属性对应用户头像的地址；修改图像实际上就是修改该属性对应的头像图片地址；这是一个原理；`{"_id":"sdfasdf","username":"sfasf","password":"fadfd=","avartar":"moren.jpg"}`
+
+```js
+exports.doRegist = function(req,res,next){
+            /******/
+            db.insertOne("user",{
+                "username":username,
+                "password":password,
+                //这样每一位注册用户，在数据库中对应的document,就会多一个avartar属性，此属性对应用户头像的地址；
+                "avartar":"moren.jpg"
+
+                },function(err,result){
+            /******/
+            })
+```
+
+* **显示头像**：修改主页面，使其在主页面显示，已登陆用户的头像；
+```js
+    //index.ejs中
+    //1.由于此时avartar文件夹已经被静态出来了，即直接输入localhost:3000/avartar.moren.jpg就可以访问moren这张图片；也就是说下面img中src中要填写的就是/avartar/moren.jpg;即用户的头像图片索引地址，对于用户来说，起始的索引都是一样的，都是/avartar/moren.jpg,但由于这个索引地址，后期用户可以通过“更改头像的接口进行更改，所以每个用户的索引地址都是不同的，这就要求此处填写的src值应该为一个ejs变量” 当呈递主页的时候，要传入这个avartar值，这个值就是用户数据库document中avartar属性对应的value；如用户document中avartar属性为moren.jpg，则填充之后的结果就是 img src="/avartar/moren.jpg" 
+    <div class="jumbotron">
+      <div class="container">
+        <h1>Hello, world!
+            //有session就显示头像，没缓存，就不显示头像；
+              <% if(login){  %>
+                    <img src="/avartar/<%=avartar%>" alt="">
+              <%}%>
+        </h1>
+
+        <p>This is a template for a simple marketing or informational website. It includes a large callout called a jumbotron and three supporting pieces of content. Use it as a starting point to create something more unique.</p>
+        <p><a class="btn btn-primary btn-lg" href="#" role="button">Learn more &raquo;</a></p>
+      </div>
+    </div>
+```
+
+```js
+    //router.js中
+    //2.渲染页面时，要填入avartar变量的真实值，是利用db.find函数，通过{"username":req.session.username}检索出来的document的avartar属性值；
+
+    exports.showIndex = function(req,res,next){
+        //2.1若用户已经登陆,呈现登陆过的页面
+        if(req.session.login == 1){
+            //检索数据库，用户document中属性avartar的值
+            db.find("user",{"username":req.session.username},function(err,result){
+                
+                var avartar = result[0].avartar;
+                res.render("index",{
+                    "login":true,
+                    "username":req.session.username,
+                    "avartar":avartar 
+                })
+            })
+        }else{
+            //2.2若用户没有登陆，则呈现未登录状态的页面
+            res.render("index",{
+                "login":false
+                //ejs文件中 使用avartar与username变量的前提都是login为true,当login为false的时候，不用传这两个值；
+            })
+        }
+      
+    }
+```
+
+
+* 个人头像的设置之头像图片上传业务： 
+
+1.提供一个用户入口，用户点击可以发送到头像设置页的请求：127.0.0.1:3000/setavartar；
+
+```js
+    //index.js中
+    <h1>Hello, world!
+               <% if(login){  %>
+                    <a href="/setavartar"><img src="/avartar/<%=avartar%>" alt=""></a>
+              <%}%>
+    </h1>
+```
+
+2.新建一个setavartar.ejs文件，作为头像设置页；当后台收到用户设置头像的请求时，将此页面渲染给用户；更改头像需要两个页面 ：一个是用来上传图片的页面(setavartar.ejs)，一个是用来剪切图片的页面(cut.ejs)（改自jcrop插件的demo页）；而之所以不用单个页面，原因在于利用ajax提交文件的实现太难，不过可以通过上面的插件jquery-form.js去突破；这个可以自己去尝试；
+
+```js
+    app.get("/setavartar",router.showSetAvartar)
+
+    //设置头像页面的逻辑，与其它页面有所不同，因为在设置头像页面，用户的状态必须是登陆状态
+    exports.showSetAvartar = function(req,res,next){
+        if(req.session.login != 1){
+            res.end("非法闯入，用户必须登陆");
+            return;//这就破解了之前老大难的问题，即为什么进入被人的邮箱，却看不到别人的东西；原因在于必须是登陆状态；
+        }
+        res.render("setavartar",{
+            "login":true,
+            "username": req.session.username 
+        })
+    }
+    //setavartar.ejs
+    //此处应注意，button的type要为submit 点击后就可以发送，若用ajas发送请求，button的type就应该为button 用来点击触发事件；
+    <form role="form" class="col-md-6" method="post" action="/dosetavartar" enctype="multipart/form-data">
+        <h1>改头像</h1>                
+        <div class="form-group">
+            <label for="avartar">上传头像图片</label>
+            <input type="file" class="form-control" id="avartar" name="avartar">
+        </div>
+
+        <button type="submit" class="btn btn-default">确定上传</button>
+    </form>
+
+```
+
+3.服务器向用户渲染的是一个文件上传表单，选择好文件后，点击submit就会向指定action地址("/dosetavartar")发送post请求; 服务器接收并相应这个post请求；
+
+> node中一共有三种路径：1.相对工作空间根目录的路径./表示工作空间根目录；2.相对与当前执行文件的路径，即利用relativepath插件直接ctrl+H出来的路径，3.是express.static静态出来的路径，这个路径是url;
+
+```js
+    //1.服务器接受post请求
+    app.post("/dosetavartar",router.doSetAvartar)
+    //2.服务器响应post请求
+    exports.doSetAvartar = function(req,res,next){
+        //3.解析用户post数据
+        var form = new formidable.IncomingForm();
+        //4.配置文件上传文件夹，此处有一个技巧：直接上传到"./avartar/"+req.session.name文件夹，数据库中用户名的不能重复的，这在用户注册的时候就已经被限制了，将用户上传的图片放到以用户名为名字的目录中，相当于将图片名封在了用户名的命名空间里，这样就可以避免图片引用路径重复的问题，若将上传的图片直接放到"./avartar"文件夹中，就要避免图片名重复，若在中间隔了一层用户名目录，就不用担心图片重复的问题； form.uploadDir = "./avartar/" + req.session.username ; 但是不能直接这样做，因为"./avartar/" + req.session.username 还不是一个目录，formidable不能自动帮我们去创建req.session,username这个目录(服务器会报 no such file or directory的错误)； 只能向将图片传到一个目录作为中转，然后通过fs模块 rename方法，转到目标目录中，rename方法，可以帮我们自动创建目录；
+        form.uploadDir = "./avartar";
+        //form.uploadDir = "./avartar/"+req.session.username;  no such file or directory
+        //form.keepExtensions = false; 这一步没有什么意义，过会文件中专时还要改名；
+
+        form.parse(req, function(err, fields, files) {
+            //5.利用fs.raname()将中转文件移到目标文件夹，同时添加文件名，与拓展名，即fs.rename()同时做了三件事；
+            //老师临时变卦了，直接将文件名字，改成用户名加文件原来的拓展名，这样简单省事；
+            var oldPath = files.avartar.path;
+            var extName = path.extname(files.avartar.name);
+            var newPath = "./avartar/" + req.session.username + extName; 
+            fs.rename(oldPath,newPath,function(err){
+                if(err){
+                    res.send("失败");
+                    return;
+                }
+                //6. 改名成功后，我们让页面跳到下一个页面，而另外一个页面负责剪切；这一步没有保存到数据库，是因为每一个人的头像图片，都对应每一个人的用户名，什么时候保存到数据库都是来得及的；
+
+                //7.跳转到切图的业务中去； 在跳转之前有一个技巧就是新建一个session属性，将图片的名字缓存一下,这样在跳转请求新页面的req.session中，可以去获取这一个值；
+                // 旧页面向新页面跳转时，会发出一次请求，而请求中会携带旧页面的session,可以将旧页面的数据放到session中，以供新页面使用，这是一个逻辑；
+                req.session.avartar = req.session.username + extName;
+
+                res.redirect("/qie")
+            })
+        });
+    }
+```
+
+* 个人头像设置之图片剪切业务
+
+```js
+    //1.接受业务
+    app.get("/cut",router.showCut)
+  
+    //2.图片剪切页面 cut.ejs  正常情况下改自 老师做的jcrop小项目中的index.ejs 此处为了节省时间，直接将其复制过来，放到views中并改名为cut.ejs; 将小项目中的public文件夹直接覆盖到本项目的public文件夹； **ejs模板有一个接口变量avartar用来接收剪切图片的路径配置**
+
+    <img src="/avartar/<%=avartar%>" id="target" alt="[Jcrop Example]"/>
+    <div id="preview-pane">
+        <div class="preview-container">
+            <img src="/avartar/<%=avartar%>" class="jcrop-preview" alt="Preview"/>
+        </div>
+    </div>
+    <input type="button" value="剪裁！！" id="btn">
+
+    <script type="text/javascript">
+        $("input").click(function () {
+            var w = parseInt($(".jcrop-holder>div:first").css("width"));
+            var h = parseInt($(".jcrop-holder>div:first").css("height"));
+            var x = parseInt($(".jcrop-holder>div:first").css("left"));
+            var y = parseInt($(".jcrop-holder>div:first").css("top"));
+
+            $.get("/docut",{
+                "w" : w,
+                "h" : h,
+                "x" : x,
+                "y" : y
+            },function(result){
+                alert(result);
+            });
+        });
+    </script>    
+```
+
+```js
+    //3.呈递图片剪切页面 填充<%= avartar%>的变量值；
+    exports.showCut = function(req,res,next){
+        res.render("cut",{
+            //在上传页面的处理函数中，将图片的名字已经存到了req.session.avartar属性中，此处可以直接拿过来使用；
+            "avartar":req.session.avartar;
+        })
+    }
+
+```
+
+```js
+    //用户在图片截切页面，选好剪切区域之后，点击剪切按钮，会先通过js获取剪切区域的顶点的坐标（xy值），以及所选区域的宽高（wh值），并会通过ajax的get请求，将这些值传递到后台服务器；图片会分为两次剪，第一次是用户剪，是假剪，目的是为了获取数据；第二次剪是真剪，是服务器剪，根据获取的数据，利用gm插件将图片剪裁；这就是剪图的逻辑；
+    //1.服务器接收前台ajax的get请求
+    app.get("/docut",router.doCut)
+    //2.后台响应前台的get请求
+    exports.duCut = function(req,res,next){
+        //3.剪切图片
+        var w = req.query.w;
+        var h = req.query.h;
+        var x = req.query.x;
+        var = req.query.y;
+
+        gm("/avartar/"+req.session.avartar)
+            .crop(w,h,x,y)
+            .resize(100,100,"!")
+            .write("/avartar/"+req.session.avartar,function(err){
+                if(err){
+                    res.send("-1");
+                    return;
+                }
+                //3.图片剪切成功之后，最终是将图片存放在，"./avartar"中，下一步就是更改当前用户document中的avartar属性，使其指向剪切的新图片（原先指向的是默认的图片），作为用户资料中的一部分，封存在用户的document中，这一步就是修改头像的本意；
+                db.updateMany("user",{"username":"req.session.username"},{
+                    $set:{"avartar":"req.session.avartar"},function(err,result){
+                        if(err){
+                            res.send("-1");
+                            return;
+                        }
+                        //4.修改成功，向前台发送“1”,
+                        res.send("1");
+                    }
+                })
+                
+        });
+    }
+    //5.前台ajax 收到数据“1”后定向到首页
+    $.get("/docut",{
+            "w" : w,
+            "h" : h,
+            "x" : x,
+            "y" : y
+        },function(result){
+            if(result=="1"){
+                //6.前台重定向到"/"后，会重新向"/"发送get请求，后台app.get("/",router.showIndex)接收到请求后会重新将页面渲染， 渲染中传入的数据"avartar":avartar，指向用户的头像，而现在这个头像已经被用户重新设置了，所以本次渲染的就是新的头像；
+                window.location = "/";
+            }
+        });
+```
+* 使用req.session.login的几个坑；
+ - 1.调试有session与cookies的代码很困难，因为每改变一次代码，nodemon就会将服务器重启，服务器重启后，就会将缓存清空；服务器上就不存在session，此时虽然用户浏览器中有session但是没法比对； 这一点是个“坑”自己尤为注意；
+ - 2.在如下代码中：表达式"login":req.session.login == "1" ? req.session.username : "", 中的req.session.login == "1"这个表达式必须用()括起来，否则会造成req.session.login被修改为req.session.username的现象；自己就遇到了这个坑，试了n次，才找出原因；
+
+```js
+    exports.showCut = function(req,res,next){
+    console.log(req.session.login);
+    res.render("cut",{
+        "login":(req.session.login == "1") ? true : false,
+
+        "username":(req.session.login = "1") ? req.session.username : "",
+        "avartar":req.session.avartar
+    })
+}
+```
+
+
+
 

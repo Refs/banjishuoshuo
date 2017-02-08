@@ -1,21 +1,34 @@
 var formidable = require("formidable");
 var db = require("./../models/db.js");
-var md5 = require("./../models/md5.js")
+var md5 = require("./../models/md5.js");
+var fs = require("fs");
+var path = require("path");
+var gm = require("gm");
 
 //显示首页
 exports.showIndex = function(req,res,next){
-    // res.render("index");
-    if(req.session.login == "1"){
-        res.render("index",{
-            "login": true,
-            "username":req.session.username
-        })
-    }else {
-        res.render("index",{
-            "login":false,
-            "username":""
-        })
-    }
+        //若用户已经登陆,呈现登陆的页面
+      
+        // console.log(req.session.login);
+        // console.log(req.session.avartar);
+
+        if(req.session.login == 1){
+            //检索数据库，用户document中属性avartar的值
+            db.find("user",{"username":req.session.username},function(err,result){
+                var avartar = result[0].avartar;
+                res.render("index",{
+                    "login":true,
+                    "username":req.session.username,
+                    "avartar":avartar
+                })
+            })
+        }else{
+            //若用户没有登陆，则呈现未登录状态的页面
+            res.render("index",{
+                "login":false
+                //ejs文件中 使用avartar与username变量的前提都是login为true,当login为false的时候，不用传这两个值；
+            })
+        }
 }
 
 // 显示注册页面
@@ -49,7 +62,11 @@ exports.doRegist = function(req,res,next){
             password = md5(md5(password)+"2");//将password利用md5加密；
 
             //将用户名与加密之后的password插入到数据库之中；
-            db.insertOne("user",{"username":username,"password":password},function(err,result){
+            db.insertOne("user",{
+                "username":username,
+                "password":password,
+                "avartar":"moren.jpg"
+            },function(err,result){
                 if(err){
                 res.json({"result":"-3"});//系统错误
                 return;
@@ -108,4 +125,78 @@ exports.doLogin = function(req,res,next){
         })
 
     })
+};
+
+exports.jqform = function(req,res,next){
+    res.render("jqform")
+}
+
+exports.dojqform = function(req,res,next){
+     var form = new formidable.IncomingForm();
+     form.parse(req,function(err,fields,files){
+         console.log(files);
+         res.json({"result":"1"});
+     })
+}
+
+exports.showSetAvartar = function(req,res,next){
+    console.log(req.session.login);
+    res.render("setavartar",{
+        "login": (req.session.login == "1") ? true : false,
+        "username":(req.session.login = "1") ? req.session.username : ""
+    })
+}
+exports.doSetAvartar = function(req,res,next){
+    console.log(req.session.login);
+    var form = new formidable.IncomingForm();
+    form.uploadDir = "./avartar/";
+    form.parse(req, function(err, fields, files) {
+        var oldPath = files.avartar.path;
+        var extName = path.extname(files.avartar.name);
+        var newPath = "./avartar/"+ req.session.username + extName;
+
+        fs.rename(oldPath,newPath,function(err){
+            if(err){
+                res.send(err);
+                return;
+            }
+            //req.session.login = "1";
+            req.session.avartar = req.session.username + extName;
+            res.redirect("/cut")
+        }) 
+    });
+}
+
+exports.showCut = function(req,res,next){
+    console.log(req.session.login);
+    res.render("cut",{
+        "login":(req.session.login == "1") ? true : false,
+        "username":(req.session.login = "1") ? req.session.username : "",
+        "avartar":req.session.avartar
+    })
+}
+ 
+exports.doCut = function(req,res,next){
+    var filename = req.session.avartar;
+    var x = req.query.x;
+    var y = req.query.y;
+    var w = req.query.w;
+    var h = req.query.h;
+     gm("./avartar/"+ req.session.avartar)
+        .crop(w,h,x,y)
+        .resize(100,100,"!")
+        .write("./avartar/"+ req.session.avartar,function(err){
+            if(err){
+                console.log(err);
+            }
+            db.updateMany("user",{"username":req.session.username},{
+                $set:{"avartar":req.session.avartar}
+            },function(err,result){
+                if(err){
+                    res.send("-1");
+                }
+                res.send("1");
+            })
+            
+    });
 }
