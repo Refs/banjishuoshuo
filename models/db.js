@@ -27,7 +27,7 @@ function init(){
             console.log(err);
             return;
         }
-        db.collection('users').createIndex(
+        db.collection('user').createIndex(
             { "username": 1},
             null,
             function(err, results) {

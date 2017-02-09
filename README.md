@@ -789,6 +789,40 @@ exports.doRegist = function(req,res,next){
 }
 ```
 
+> 后台页面总体可以分为两大部分，有的是执行者，有的是呈递者，
+
+### v7.0 数据库中 添加指定field的索引，以提高数据库的查询效率；
+
+> Mongodb支持多种index类型，这相对于其他Nosql数据库而言具有很大的优势，它的索引类型比较接近SQL数据库，所以开发者在mongodb中使用索引将是非常便捷的。索引最大的作用就是提高query的查询性能，如果没有索引，mongodb需要scan整个collection的所有的documents，并筛选符合条件的document，如果有索引，那么query只需要遍历index中有限个索引条目即可，况且index中的条目是排序的，这对“order by”操作也非常有利。
+
+
+```js
+     //所有的js包，在被require的时候，都会被执行一次,这样当每次db.js被require的时候，init函数都会自动自行一次，为数据库创建一个index,index保存了指定field(username)的值，并按照filed(username)值的顺序排序
+    init();
+    function init(){
+        //对数据库进行一个初始化
+        _connectDB(function(err, db){
+            if (err) {
+                console.log(err);
+                return;
+            }
+            db.collection('user').createIndex(
+                { "username": 1},
+                null,
+                function(err, results) {
+                    if (err) {
+                        console.log(err);
+                        return;
+                    }
+                    
+                }
+            );
+        });
+    }
+    //查询的集合民，以及index指定的field值，提升为函数的接口层次，只需要每次做项目的时候，在init函数体内配置就可以了；
+```
+
+
 
 
 
