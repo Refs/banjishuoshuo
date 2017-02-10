@@ -16,17 +16,23 @@ exports.showIndex = function(req,res,next){
             //检索数据库，用户document中属性avartar的值
             db.find("user",{"username":req.session.username},function(err,result){
                 var avartar = result[0].avartar;
-                res.render("index",{
+                //再次嵌套db result名字与上面的名字重复了， 所以改名字为result2, 
+                db.find("shuoshuo",{},function(err,result2){
+                     console.log(result);
+                     res.render("index",{
                     "login":true,
-                    "username":req.session.username,
-                    "avartar":avartar
+                    "username":req.session.username || "moren",
+                    "avartar":avartar,
+                    "result":result2
+                    })
                 })
             })
         }else{
             //若用户没有登陆，则呈现未登录状态的页面
             res.render("index",{
-                "login":false
+                "login":false,
                 //ejs文件中 使用avartar与username变量的前提都是login为true,当login为false的时候，不用传这两个值；
+                "result":[]
             })
         }
 }
@@ -199,4 +205,26 @@ exports.doCut = function(req,res,next){
             })
             
     });
+}
+
+exports.doShuoShuo = function(req,res,next){
+
+    //必须保证登陆
+    if(req.session.login != "1"){
+        res.end("非法闯入，这个页面要求登陆！");
+        return;
+    }
+    //得到用户填写的东西
+     var form = new formidable.IncomingForm();
+     form.parse(req, function(err, fields,files){
+        db.insertOne("shuoshuo",{"username":req.session.username,"date":new Date(),"content":fields.content},function(err,result){
+            if(err){
+                res.send("-3");
+                return;
+            }
+            
+            res.send("1");
+        })
+
+     })
 }

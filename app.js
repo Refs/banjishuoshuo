@@ -38,4 +38,6 @@ app.post("/dosetavartar",router.doSetAvartar)
 app.get("/cut",router.showCut)
 app.get("/docut",router.doCut)
 
+app.post("/doshuoshuo",router.doShuoShuo)
+
 app.listen(3000);

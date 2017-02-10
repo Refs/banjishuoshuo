@@ -822,7 +822,167 @@ exports.doRegist = function(req,res,next){
     //查询的集合民，以及index指定的field值，提升为函数的接口层次，只需要每次做项目的时候，在init函数体内配置就可以了；
 ```
 
+### v8.0 利用后台模板 发表说说
+
+* 未登陆的用户，没有发表说说的接口，已登陆用户要有发表说说的接口；
+
+> 不同的页面，调用同样一个ajax;
+
+> 用前台有什么好处，就可以提供各种服务；在前台去拼凑 json ;前台通过各种请求，去请求不同的json,然后前台收到不同的json,再拼合成一个大json, 将大json传到underscore模板中，进行无刷新渲染；
+
+> 分页 后台要做的话 消耗很大，很大基本上做不过来；
+
+> 每个人的名字都可以被点击，点击过就会进入目标人的页面里，就会罗列出目标人的所有说说；
+
+> chrome浏览器的调试session的技巧，正常情况下一个浏览器，打开一个页面只能同时有一个session,而谷歌浏览器的隐身模式窗口，还可以打开另外一个session，即可以同时保有两个session（保有两个登陆用户）,两个用户名进行调试工作；即可以通过隐身窗口开小号，
+
+> 在前台页面，关键是能提供这些接口，和实现这些接口的业务逻辑，至于样式是什么样的，不属于自己关心的范畴； **整个全栈，运转在后台，但根节还是在前台页面，页面中提供一些接口，与用户的鼠标与眼睛交互**抓住这个根，自己在迷宫中，在苦海泛舟中，才不会迷失太多；
 
 
 
+> 要分清楚，弄明白页面中那一部分数据，直接写上的，而那一部分数据，是请求后台得到的， 
 
+
+* 用户未登陆时，主页面有两个接口：注册接口与登陆表格接口，其中注册接口为一个按钮样式的链接(bootstrap)，点击之后可以直接跳转到注册页面；而登陆接口为一个表格，点击后可以直接登陆，这个表格是从login.ejs页面中直接截取的，包括三部分内容html、underscore模板、ajax逻辑；
+
+* 若用户已经登陆,则首先应将用户名与用户头像在页面中渲染出来，其次要有用户发表说说的接口；
+
+```html
+    <!--1.用户未登陆时的用户状态-->
+    <%if(login!="1"){%>
+        <div class="row">
+                <!--注册接口-->
+                <div class="col-lg-6">
+                    <h2>班级说说</h2>
+                    <p>班级说说，是同学们交流的平台与园地</p>
+                    <p><a class="btn btn-primary btn-lg" href="/regist" role="button">login &raquo;</a></p>
+                </div>
+
+                <!--登陆接口-->
+                <form role="form" class="col-md-6">
+                    <h2>欢迎登陆</h2>                
+                    <div class="form-group">
+                        <label for="username">用户名</label>
+                        <input type="text" class="form-control" id="username" placeholder="用户名，且用户名不可以重复">
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="mima">Password</label>
+                        <input type="password" class="form-control" id="password" placeholder="密码至少六位">
+                    </div>
+                    
+                    <div class="checkbox">
+                        <label>
+                            <input type="checkbox"> 记住密码
+                        </label>
+                    </div>
+                    <button type="button" class="btn btn-default" id="login">登陆</button>
+
+                    
+                    <div class="row" id="failed"> </div>    
+                </form>
+                <!--underscore模板-->
+                <!--ajax逻辑-->
+        </div>
+    <%}else{%>
+        <!--2.用户已登陆的状态-->
+            <div class="row">
+              <div class="col-md-2 col-md-offset-1">
+                  <p><a href="/setavartar"><img src="/avartar/<%=avartar%>" alt=""></a></p>
+                  <h2><%=username%></h2>
+              </div>
+              <div class="col-md-7 col-md-offset-1">
+                <!--开放一个用户 填写说说内容与提交内容至后台的接口-->
+                <textarea name="content" id="" cols="80" rows="10"></textarea>
+                <p><button type="button" id="fabiao" class="btn btn-success btn-sm">发表说说</button></p>
+              </div>
+            </div>  
+    <%}%>
+```
+
+* 完成说说发表的接口逻辑
+
+```js
+     //1.前台ajax接口，用户点击发送按钮，ajax会将用户在文本域输入的文本通过post方法向服务器指定url发送请求
+     $("#fabiao").click(function(){
+         $.post("/doshuoshuo",{"content":$("#content").val()},function(result){
+             //接受后台ajx响应
+             if(result=="1"){
+                 alert("发表成功！")
+             }else{
+                 alert("发表失败，请联系管理员！")
+             }
+
+
+         })
+     })
+     //调试，点击按钮，观察一下控制台请求是否发出；
+
+     //2.后台响应并处理，前台的ajax请求；
+     app.post("/doshuoshuo",router.doShuoShuo);
+
+     exports.doShuoShuo = function(req,res,next){
+        //2.1 首先要保证是已登陆用户在操作
+        if(req.session.login!="1"){
+            res.send("必须保证用户为登陆状态");
+            return;
+        }
+
+         //2.2利用formidable接受post数据
+        var form = new formidable.IncomingForm();
+        form.parse(req, function(err, fields,files){
+            //2.3数据接收完毕后，将数据存储到数据库“shuoshuo”集合当中，document的field包括username data content；
+            db.insertOne("shuoshuo",{"username":req.session.username,"date":new Date(),"content":fields.content},function(err,result){
+                //2.4响应ajax请求
+                if(err){
+                    res.send("-3");
+                    return;
+                }
+                res.send("1");
+            })
+        })
+     }
+```
+
+* ejs模板页面显示说说的接口
+
+
+```js
+
+        //1.后台ejs模板（视图层）中的接口，是用来承接后台render的数据；显示说说本质上是显示数据库shuoshuo内的document，每一条说说都对应一条document; 控制层render的时候向ejs穿一个result数组，即db数据库的查询结果； ejs根据承接到的数组，去渲染显示区域；
+        <%for(var i=0;i<result.length;i++){%>
+            <div class="col-md-4">
+              <h2><img width="50px" src="/avartar/<%=result[i].username%>.jpg"><%=result[i].username%></h2>
+              <p><%=result[i].content%></p>
+              <p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p>
+            </div>
+        <%}%>
+
+        //现在这套模板是在后台执行的，也就是说不管有多少用户来访问，其执行的事情不纯粹（纯粹的是指只参与数据的逻辑与运算，不参与过多的业务），其都是利用后台的那一块cpu，执行一大堆for循环，利用ejs引擎组装成模板之后发给用户，所送给用户的好处，就是直接在页面上组建dom,在页面查看源码中，你将不能知道这一部分内容是从数据库中得来的；
+
+```
+
+```js
+        //2.控制层获取说说集合中的document结果数组，并通过render将数据传递给ejs，而后ejs渲染页面
+        db.find("shuoshuo",{},{"sort":{"date":-1}},function(err,result){
+            //3.我们总是希望，数据最后插入的，显示在最前面;而db正常的查询结果中，最后插入的数据总是放在最后面，所以我们传入了配置json，用来配置数据顺序；
+            res.render("index",{
+                //*****
+                "result":result;
+            })
+        })
+```
+### v9.0 利用ajax来发表说说
+
+* 利用underscore在前端组建模板
+ > 上述的方法，是在后台组建模板，浪费的是后台服务器的cpu；利用ajax是接受后台的数据，在前台利用underscore组建模板，是在访问用户前台执行的，用的是用户的cpu，那个效率高一看便知；
+
+ >  用前台有什么好处，就可以提供各种服务；在前台去拼凑 json ;前台通过各种请求，去请求不同的json,然后前台收到不同的json,再拼合成一个大json, 将大json传到underscore模板中，进行无刷新渲染；
+
+ > **ajax嵌套使用初步：**ajax嵌套有一个坑，就是ajax本身是异步，而此处必须使用同步嵌套否则就会出错，具体方法是传入同步参数，或使用迭代器，化异步为同步；  “我们通过ajax请求获取某个人的username之后，再次发起一个请求，查询某一个人的信息 ”  `for循环中不能有异步函数，因为函数异步完成之后，for循环中的i值就已经变过了； 解决办法一是将内部的异步函数变成同步，二是将for循环改成迭代器;`
+
+ 要有利用ajax，来暴露json的思路；不用担心路由很乱； 逻辑就是写一个服务，然后将所有的json，都暴露出来； 前后端通过json进行交互；
+
+ db数据库虽然不支持外链，但可以通过ajax嵌套，一层服务套另外一层服务，从而实现一层数据套另外一层数据，曾而实现了数据的“外链”；
+
+ 请求的数据
