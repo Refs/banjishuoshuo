@@ -228,3 +228,30 @@ exports.doShuoShuo = function(req,res,next){
 
      })
 }
+
+exports.getAllShuoshuo = function(req,res,next){
+    var page = req.query.page;
+    db.find("shuoshuo",{},{"pageamount":3,"page":page,"sort":{"date":-1}},function(err,result){
+        if(err){
+            res.send(err);
+            return;
+        }
+        res.json({"result":result})
+    })
+}
+
+exports.getUserInfo = function(req,res,next){
+    var username = req.query.username;
+    db.find("user",{"username":username},function(err,result){
+        if(err){
+            res.send(err);
+            return;
+        }
+        var result = {
+            "_id":result[0]._id,
+            "username":result[0].username,
+            "avartar":result[0].avartar
+        }
+        res.json({"result":result})
+    })
+}

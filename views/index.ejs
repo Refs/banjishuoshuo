@@ -88,29 +88,31 @@
 
     <div class="container">
       <!-- Example row of columns -->
-        <div class="row">
-        <%for(var i=0;i<result.length;i++){%>
-            <div class="col-md-4">
-              <h2><img width="50px" src="/avartar/<%=result[i].username%>.jpg"><%=result[i].username%></h2>
-              <p><%=result[i].content%></p>
-              <p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p>
-            </div>
-        <%}%>
+        <div class="row" id="shuoshuo">
+        
         </div>
-      </div>
+    </div>
 
       <hr>
 
       <footer>
         <p>&copy; Company 2014</p>
       </footer>
-    </div> <!-- /container -->
+    </div> 
 
 
 
     <!-- Bootstrap core JavaScript
     ================================================== -->
     <!-- Placed at the end of the document so the pages load faster -->
+
+    <script type="text/template" id="moban2">
+        <div class="col-md-4" >
+           <h2><img width="50px" src="/avartar/{{=avartar}}">{{=username}}</h2>
+           <p>{{=content}}</p>
+           <p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p>
+        </div>
+    </script>
 
     <script type="text/template" id="moban">
         <div class="alert alert-danger " role="alert">
@@ -122,6 +124,30 @@
     <script src="/js/underscore.js"></script>
 
     <script type="text/javascript">
+        var compiled = _.template($("#moban2").html());
+
+        $.get("/allshuoshuo?page=0",function(result){
+        //请求后台暴露第一个json
+            iterator(0);
+            function iterator (i){
+                if(i==result.result.length){
+                  return;
+                  //迭代结束
+                }
+                $.get("/userinfo?username="+result.result[i].username,function(result2){
+                //迭代器中请求后台暴露第二个json
+                    result.result[i].avartar = result2.result.avartar;
+                    //将请求的第二个json，聚合到第一个json中；
+                    var html = compiled(result.result[i]);
+                    // 利用聚合后的json，来组建模板
+                    $("#shuoshuo").append($(html));
+                    //dom操作
+                    iterator(i+1);
+                    //迭代
+                })
+            }
+        })
+
     
         $("input").focus(function(){
              $("#failed").html("");

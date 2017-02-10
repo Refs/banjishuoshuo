@@ -822,7 +822,7 @@ exports.doRegist = function(req,res,next){
     //查询的集合民，以及index指定的field值，提升为函数的接口层次，只需要每次做项目的时候，在init函数体内配置就可以了；
 ```
 
-### v8.0 利用后台模板 发表说说
+### v8.0 后台组建说说模板
 
 * 未登陆的用户，没有发表说说的接口，已登陆用户要有发表说说的接口；
 
@@ -972,7 +972,7 @@ exports.doRegist = function(req,res,next){
             })
         })
 ```
-### v9.0 利用ajax来发表说说
+### v9.0  前台组建说说模板
 
 * 利用underscore在前端组建模板
  > 上述的方法，是在后台组建模板，浪费的是后台服务器的cpu；利用ajax是接受后台的数据，在前台利用underscore组建模板，是在访问用户前台执行的，用的是用户的cpu，那个效率高一看便知；
@@ -986,3 +986,135 @@ exports.doRegist = function(req,res,next){
  db数据库虽然不支持外链，但可以通过ajax嵌套，一层服务套另外一层服务，从而实现一层数据套另外一层数据，曾而实现了数据的“外链”；
 
  请求的数据
+
+ ```js
+    //1将后台ejs模板转化为前台underscore模板
+
+    //1.1原先在后台利用ejs组建的模板
+    <div class="container">
+        <div class="row">
+        <%for(var i=0;i<result.length;i++){%>
+            <div class="col-md-4">
+              <h2><img width="50px" src="/avartar/<%=result[i].username%>.jpg"><%=result[i].username%></h2>
+              <p><%=result[i].content%></p>
+              <p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p>
+            </div>
+        <%}%>
+        </div>
+      </div>
+    //1.2 用于在前台组建的underscore模板,underscore在行为上与ejs有一点不同（ejs是直接组建页面，underscore是组建节点，而后利用dom操作，来组建页面），ejs是直接组建页面，underscore是先将模板组建成dom节点，而后利用js的dom操作将节点插入或缀到页面某一个节点中，来组建页面； 要弄清这两条线的逻辑；
+    <style type="text/css">
+        .grid{
+            height:200px;
+        }
+    </style>
+    //浮动的盒子要有高，否则撑不开父亲；
+    <div class="container">
+        <div class="row" id="shuoshuo">
+        </div>
+    </div>
+    <script type="text/template" id="moban">
+        <div class="col-md-4 grid">
+            <h2><img width="50px" src="/avartar/{{=avartar}}">{{=username}}</h2>
+            <p>{{=content}}</p>
+            <p><a class="btn btn-default" href="#" role="button">View details &raquo;</a></p>
+        </div>
+    </script>
+ ```
+ 
+ ```js
+    //1.3利用假数据，来调试underscore模板是否能正常工作
+    //模拟后台传来的json
+    var result = {"result":[
+        {"username":"小红","content":"我是强哥，班主任很信任我","avartar":"moren.jpg"},
+        {"username":"小ming","content":"我是强哥f很信任我","avartar":"moren.jpg"},
+        {"username":"小兰兰","content":"我是小兰兰，班主任很信任我","avartar":"moren.jpg"},
+    ]}
+    var compiled = _.template($("#moban").html());
+    for(var i=0;i<result.result.length;i++){
+        //组建节点
+         var html = compiled(result.result[i]);//此处是一个技巧，就是前后端json的契合；underscore 组建节点需要传入json字典，而result.result[i]正好是一个json，且两个json的key值，完全契合；就可以直接拿来当字典用了；这一点用起来相当舒服；
+         //组建页面
+         $("#shuoshuo").append($(html));
+    }
+ ```
+
+```js
+    //1.4 获取真实的json数据 
+    
+    /*第一个坑 我们测试用的json是下面这种形式， 即说说的内容与用户的基本信息是放在同一个json中，
+    `{"username":"小红","content":"我是强哥，班主任很信任我","avartar":"moren.jpg"}` 
+    
+    而真实的数据库document中,  用户基本信息与其说说内容分别位于不同的collection中不同的document中；
+
+    {"_id" : ObjectId("5891c3eeccce5e15646aaafd"), "username" : "sdsd", "password": "MlvW3PpV5JrigJiXCMJVBg==","avartar":"moren.jpg"}
+    { "_id" : ObjectId("589c697dbb2e1a187c379cad"), "username" : "小兰兰", "date" :ISODate("2017-02-09T13:07:09.979Z"), "content" : "fasdfasd" }
+    
+    underscore在组建节点模板时，需要三个key值，这三个值不同同时从一个数据库json去获得，需要同时向这两个document中去获取，即组建一次underscore模板，需要服务器暴露两个json；  （在关系型数据库中，可以通过外链，而在非关系型数据库中只能通过多次请求服务器，服务器多次暴露json,前台从多个json中获取数据，去组建模板）
+    */
+
+        var compiled = _.template($("#moban").val());
+        //1.41 请求服务器暴露第一个json ; 获取shuoshuo集合的第0页document,内容包括用户名usernaem与说说内容content
+        $.get("/allshuoshuo?page=0",function(result){
+            //for(var i=1;i<result.length;i++){
+                //1.42 ajax嵌套：我们识别出某一个人的username(result.r[i].username)之后，再一次发起请求，查询某一个人的信息（包括其对应的avartar）,
+                //第二个坑 :我们现在是for循环中发送ajax异步请求：而`for循环中不能套异步函数，因为函数异步完成之后，for循环中的i值就已经变过了； 解决办法一是将内部的异步函数变成同步（通过传ajx参数），二是将for循环改成迭代器;` 而chorme不允许ajax发送同步请求，解释是说会影响用户体验，所以最终只有将for循环，改成迭代器；
+
+                iterator(0);
+                //从0开始迭代
+                function iterator(i){
+                    if(i==result.result[i].length){
+                        return;
+                        //迭代终止
+                    }
+                    //1.43请求服务器暴露第二个json;
+                    $.get("/userinfo",function(result2){
+                        //聚合两个json 为一个json ;
+                        result.result[i].avartar=result2.result.avartar;
+                        //利用聚合过的json，组建模板
+                        var html = compiled(result.result[i]);
+                        //dom操作
+                        $("#shuoshuo").append($(html));
+                        //向上迭代
+                        iterator(i++);
+                    })
+                }
+               
+           // }
+        })
+
+        //后台逻辑
+        //127.0.0.1:3000/allshuoshuo?page=0
+        app.get("/allshuoshuo",router.AllShuoshuo);
+        exports.AllShuoshuo = function(req,res,next){
+            var page = req.query.page;
+            db.find("shuoshuo",{},{"pageamount":9,"page":page,"sort":{"date":-1}},function(err,result){
+                res.json({"result":r})
+            })
+        }
+        //127.0.0.1:3000/userinfo?username=小红
+        app.get("/userinfo",router.UserInfo);
+        exports.UserInfo = function(req,res,next){
+            var username = req.query.username;
+            db.find("user",{"username":username},function(err,result){
+              // res.json({"result":result});
+              //但这样直接写，会出现一个问题，暴露的json是如下的形式`{"_id" : ObjectId("5891c3eeccce5e15646aaafd"), "username" : "sdsd", "password": "MlvW3PpV5JrigJiXCMJVBg==","avartar":"moren.jpg"}` json包含的用户信息中，含有用户的密码；即后台会直接暴露json，这样会被别人看作很不专业；解决办法是，在后台暴露json之前，将json处理一下；
+              var result = {"_id":result._id,"username":result.username,"avartar":result.avartar};
+              //即将要暴露的项，重新包裹成一个json，然后将这个json暴露出去；
+              res.json({"result":result}); 
+            })
+        }
+
+```
+
+> 字典修饰功能介绍；字典就是一个json对象，字典修饰本质就是对这个json对象进行，增删改操作；如为json对象增加一条属性；字典修饰工作，实际上是将两个json对象，聚合成一个新的json对象， 然后underscore利用这个新的json对象，去组建模板节点；在关系型数据库中，这一步称为** 聚合**
+
+```js
+    var json1 = {"name":"xiaoli","age":"12"}
+    var json2 = {"name":"xiaoli","hobby":"打球"}
+    json2.hobby = json1.hobby;
+    //json2 = {"name":"xiaoli","hobby":"打球","hobby":"打球"}
+    var html = compiled(json2)
+```
+
+> 做了那么多，说白了，就是mongodb没有外链，有外链的话，早就做出来了；外链是关系型数据库的一个术语，当你从一个表中，想获取另外一个表的信息的时候，就需要外链，外链是延展表维度的一个方法； 但mongo太单薄，其仅仅依靠json 来存储数据，若同时需要多个表单的数据，只有再重新请求一下json

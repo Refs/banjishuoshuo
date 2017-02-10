@@ -40,4 +40,7 @@ app.get("/docut",router.doCut)
 
 app.post("/doshuoshuo",router.doShuoShuo)
 
+app.get("/allshuoshuo",router.getAllShuoshuo)
+app.get("/userinfo",router.getUserInfo)
+
 app.listen(3000);
