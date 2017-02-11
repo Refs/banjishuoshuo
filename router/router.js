@@ -278,3 +278,13 @@ exports.showUser = function(req,res,next){
         })
     })
 }
+
+exports.showUserList = function(req,res,next){
+    db.find("user",{},function(err,result){
+        res.render("userlist",{
+            "login":(req.session.login == "1") ? true : false,
+            "username":(req.session.login == "1") ? true :false,
+            "userlist":result
+        })
+    })
+}
