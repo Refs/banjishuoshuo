@@ -19,11 +19,12 @@
                     <%}%>
                 ><a href="#">全部说说</a></li>
 
-                <li <% if(active == "我的说说"){%>
-                        class = "active"
-                    <%}%>
-                ><a href="#">我的说说</a></li>
-
+                <% if(!login){  %>
+                    <li <% if(active == "我的说说"){%>
+                            class = "active"
+                        <%}%>
+                    ><a href="#">我的说说</a></li>
+                <%}%>
                 <li <% if(active == "成员列表"){%>
                         class = "active"
                     <%}%>

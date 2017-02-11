@@ -1168,8 +1168,13 @@ exports.doRegist = function(req,res,next){
                 */
             }
             $(".pageLi").click(function(){
-                var page = $(this).index();
-                $(this).addClass("active").siblines().removeClass("active");
+                //将点按钮之前前说说的内容清空
+                $("#shuoshuo").html("");
+                //将current active的位置改变一下
+                $(this).addClass("active").siblings().removeClass("active");
+                //按钮点击时调用内容挂靠函数；
+                var page = $(this).index()-1;
+                //$(this).index()是从1开始的，而页码条是从0开始的；
                 getPage(page);
             })
         })
@@ -1218,4 +1223,81 @@ exports.doRegist = function(req,res,next){
     }
       
 
+```
+
+### v11.0 个人主页
+
+* 个人主页的静态模板 : 此步骤做到 输入：127.0.0.1:3000/user/小兰 就可进入小兰的主页
+
+```js
+    //主路由
+    app.get("/user/:username",router.showUser);
+
+    //后台逻辑
+    exports.showUser = function(req,res,next){
+        var user = req.params.username;
+        db.find("shuoshuo",{"username":user},function(err,result){
+             db.find("/user",{"username":user},function(err,result2){
+                res.render("user"{
+                    "login":(req.session.login == "1") : true ? false,
+                    "username":(req.session.login == "1") : req.session.username ? "",
+                    "user":user,
+                    "usershuoshuo":result,
+                    "useravartar":result2[0].avartar
+                })
+             })
+        })
+    }
+
+    //页面ejs模板 改自login.ejs
+    <style type="text/css">
+        .one{ 
+            border-bottom:1px solid #ccc;
+        }
+    </style>
+
+    <%- include("./header.ejs",{"active":"登陆"}) %> //改点一
+
+    <div class="container">
+         <!--标题-->
+         <img src="/avartar/<%=useravartar%>">
+         <h1><%=user%></h1>
+         <div class="row col-md-6">
+         <!--显示个人的全部说说-->
+            <%for(var i=0;i<usershuoshuo.length;i++){%>
+                <div class="one">
+                    <p><%=usershuoshuo[i].content%></p>
+                    <p><%=usershuoshuo[i].date%></p>
+                </div>
+            <%}%>
+         </div>
+    </div>
+
+```
+
+* 点击进入**我的说说**，已登陆用户点击**我的说说**，即可以导向 127.0.0.1:3000/user/req.session.username, 即进入个人主页；
+
+```js
+        //header.ejs
+        <ul class="nav navbar-nav">
+            <li <% if(active == "全部说说"){%>
+                    class = "active"
+                <%}%>
+            ><a href="#">全部说说</a></li>
+
+            <% if(!login){  %>
+                <li <% if(active == "我的说说"){%>
+                        class = "active"
+                    <%}%>
+                ><a href="/user/<%=username%>">我的说说</a></li>
+            <%}%>
+
+            //用户未登陆，则header不显示**我的说说按钮**
+            //用户若登陆，点击链接导向 指定url
+
+            <li <% if(active == "成员列表"){%>
+                    class = "active"
+                <%}%>
+            ><a href="#">成员列表</a></li>
+        </ul>  
 ```
