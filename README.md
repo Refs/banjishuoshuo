@@ -1301,3 +1301,48 @@ exports.doRegist = function(req,res,next){
             ><a href="#">成员列表</a></li>
         </ul>  
 ```
+
+### v12.0 显示成员列表(显示所有的注册用户)
+
+```js
+    //主路由
+    app.get("/userlist",router.getUserList);
+    //处理函数
+    exports.showUserList = function(req,res,next){
+        db.find("user",{},function(err,result){
+            res.render("userlist"{
+                "login":(req.session.login == "1") : true ? false,
+                "username":(req.session.login == "1") : req.session.username ? "",
+                "userlist":result
+            })
+        })
+    }
+
+    //userlist.ejs；直接改自user.ejs
+    <style type="text/css">
+        .one{ 
+            border-bottom:1px solid #ccc;
+        }
+    </style>
+
+    <%- include("./header.ejs",{"active":"登陆"}) %> //改点一
+
+    <div class="container">
+         <!--标题-->
+         <img src="/avartar/<%=useravartar%>">
+         <h1>所有成员</h1>
+         <div class="row col-md-6">
+         <!--显示所有的已经注册用户-->
+            <%for(var i=0;i<userlist.length;i++){%>
+                <!--点击用户列表中的用户头像或姓名，可以直接进入对方主页-->
+                <a target="_blank" href="/user/<%=userlist[i].username%>">
+                    <div class="one">
+                        <p><%=userlist[i].username%></p>
+                        <p><img src="/avartar/<%=userlist[i].avartar%>"></p>
+                    </div>
+                </a>
+            <%}%>
+         </div>
+    </div>
+
+```

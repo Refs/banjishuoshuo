@@ -263,3 +263,18 @@ exports.getAllShuoshuoCount = function(req,res,next){
             res.send(result.toString());
         })
 }
+
+exports.showUser = function(req,res,next){
+    var user = req.params.username;
+    db.find("shuoshuo",{"username":user},function(err,result){
+        db.find("user",{"username":user},function(err,result2){
+            res.render("user",{
+            "login":(req.session.login == "1") ? true : false,
+            "username":(req.session.login == "1") ? req.session.username : "",
+            "user":user,
+            "usershuoshuo":result,
+            "useravartar":result2[0].avartar
+            })
+        })
+    })
+}

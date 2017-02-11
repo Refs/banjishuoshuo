@@ -45,4 +45,6 @@ app.get("/userinfo",router.getUserInfo)
  
 app.get("/allshuoshuocount",router.getAllShuoshuoCount);
 
+app.get("/user/:username",router.showUser)
+
 app.listen(3000);
