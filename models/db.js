@@ -20,22 +20,22 @@ function _connectDB(callback) {
 
 init();
 
-function init(){
+function init() {
     //对数据库进行一个初始化
-    _connectDB(function(err, db){
+    _connectDB(function (err, db) {
         if (err) {
             console.log(err);
             return;
         }
         db.collection('user').createIndex(
-            { "username": 1},
+            { "username": 1 },
             null,
-            function(err, results) {
+            function (err, results) {
                 if (err) {
                     console.log(err);
                     return;
                 }
-                
+
             }
         );
     });
@@ -122,10 +122,11 @@ exports.updateMany = function (collectionName, json1, json2, callback) {
 }
 
 //得到总数量
-exports.getAllCount = function (collectionName,callback) {
+exports.getAllCount = function (collectionName, callback) {
     _connectDB(function (err, db) {
-        db.collection(collectionName).count({}).then(function(count) {
+        db.collection(collectionName).count({}).then(function (count) {
             callback(count);
+            //得到的是一个普通实数，在回掉函数中res,send的时候，要加上count.toString();
             db.close();
         });
     })

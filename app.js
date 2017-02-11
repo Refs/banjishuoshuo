@@ -42,5 +42,7 @@ app.post("/doshuoshuo",router.doShuoShuo)
 
 app.get("/allshuoshuo",router.getAllShuoshuo)
 app.get("/userinfo",router.getUserInfo)
+ 
+app.get("/allshuoshuocount",router.getAllShuoshuoCount);
 
 app.listen(3000);

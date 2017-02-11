@@ -247,11 +247,19 @@ exports.getUserInfo = function(req,res,next){
             res.send(err);
             return;
         }
-        var result = {
-            "_id":result[0]._id,
-            "username":result[0].username,
-            "avartar":result[0].avartar
+        if(result.length!=0){
+            var result = {
+                "username":result[0].username,
+                "avartar":result[0].avartar
+            }
+            res.json({"result":result});
         }
-        res.json({"result":result})
+       
     })
+}
+
+exports.getAllShuoshuoCount = function(req,res,next){
+        db.getAllCount("shuoshuo",function(result){
+            res.send(result.toString());
+        })
 }

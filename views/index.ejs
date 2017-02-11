@@ -16,7 +16,13 @@
 
     <!-- Custom styles for this template -->
     <link href="/css/jumbotron.css" tppabs="http://v3.bootcss.com/examples/jumbotron/jumbotron.css" rel="stylesheet">
-
+    <style type="text/css">
+        #shuoshuo{
+            height:500px;
+        }
+        
+    </style>
+    <!--解决点击分页按钮时，页面向上跳的bug-->
 
     <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
     <!--[if lt IE 9]>
@@ -87,8 +93,16 @@
     </div>
 
     <div class="container">
+        <nav>
+          <ul class="pagination">
+            <li><a href="#">&laquo;</a></li>
+         
+            <li class="next-btn"><a href="#">&raquo;</a></li>
+          </ul>
+        </nav>
+
       <!-- Example row of columns -->
-        <div class="row" id="shuoshuo">
+        <div class="row" id="shuoshuo" >
         
         </div>
     </div>
@@ -99,6 +113,7 @@
         <p>&copy; Company 2014</p>
       </footer>
     </div> 
+
 
 
 
@@ -124,9 +139,33 @@
     <script src="/js/underscore.js"></script>
 
     <script type="text/javascript">
-        var compiled = _.template($("#moban2").html());
+        $.get("/allshuoshuocount",function(result){
+            var count = parseInt(result);
+            var pagecount = Math.ceil(count/3);
+            console.log(pagecount);
+            for(var i=0;i<pagecount;i++){
+                var stringLi = "<li class='pageLi'><a>"+i+"</a></li>";
+                // $(".pagination").append($(stringLi));
+                $(stringLi).insertBefore($(".next-btn"))
+            }
+            $(".pageLi").click(function(){
+                //将点按钮之前前说说的内容清空
+                $("#shuoshuo").html("");
+                //将current active的位置改变一下
+                $(this).addClass("active").siblings().removeClass("active");
+                //按钮点击时调用内容挂靠函数；
+                var page = $(this).index()-1;
+                //$(this).index()是从1开始的，而页码条是从0开始的；
+                getPage(page);
+            })
+        })
+    </script>
 
-        $.get("/allshuoshuo?page=0",function(result){
+    <script type="text/javascript">
+    getPage(0);
+    function getPage(page){
+        var compiled = _.template($("#moban2").html());
+        $.get("/allshuoshuo?page="+page,function(result){
         //请求后台暴露第一个json
             iterator(0);
             function iterator (i){
@@ -147,6 +186,8 @@
                 })
             }
         })
+    }
+      
 
     
         $("input").focus(function(){

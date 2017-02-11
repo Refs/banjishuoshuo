@@ -1118,3 +1118,104 @@ exports.doRegist = function(req,res,next){
 ```
 
 > 做了那么多，说白了，就是mongodb没有外链，有外链的话，早就做出来了；外链是关系型数据库的一个术语，当你从一个表中，想获取另外一个表的信息的时候，就需要外链，外链是延展表维度的一个方法； 但mongo太单薄，其仅仅依靠json 来存储数据，若同时需要多个表单的数据，只有再重新请求一下json
+
+### v10.0 班级说说分页
+
+1.得到数据的总数量，
+2.根据得到的数据总数量，来计算一共可以显示多少页；
+
+**前台毕竟要知道后台的一些事情，你得其一个网址**，你得给其一个网址； 后台提供一种服务，前台通过请求这种服务，来请后台去暴露某方面的一些数据；
+```js
+    //后台提供得到数据量的服务，前台只要去请求，后台就会去暴露" 数据总数量"；
+    app.get("/allshuoshuocount",router.getAllShuoshuoCount);
+
+    exports.getAllShuoshuoCount = function(req,res,next){
+        db.getAllCount("shuoshuo",function(result){
+            res.send(result.toString());
+        })
+    }
+    //127.0.0.1:3000/allshuoshuocount   //37
+```
+
+3.得到的数据总数量，用于构建**分页按钮**
+```js
+    //分页逻辑
+     <nav>
+          <ul class="pagination">
+                <li><a href="#">&laquo;</a></li>
+                <% for (var i=1; i<=pageamount; i++){ %>
+                    <li data-page="<%=i%>" class="yemaanniu"><a href="#"><%=i%></a></li>
+                <% } %>
+                <li class="next-btn"><a href="#">&raquo;</a></li>
+          </ul>
+    </nav>
+```
+```js
+    //不用前端模板，利用ajax生做
+    //<script type="text/javascript">
+        $.get("/allshuoshuocount",function(result){
+            //获取数据条数；
+            var amonut = parseInt(result);
+            //获取分页数
+            var pageamount = Math.ceil(amount/10);
+            //创建与分页数对等的按钮；
+            for(var i=0;i<pageamount;i++){
+                $(".pagination").append(" <li class='pageLi'><a href='#'>"+i+"</a></li>")
+                /*
+                    页码有了，但是链接不对，（没有点击按钮，刷新页面的功能）此时有两种处理方式，  
+                    第一种：修改链接<a>的href地址，即点击链接，可以发送类似127.0.0.1:3000/allshuoshuo?page=0的请求
+                    第二种；是为每个li绑定一个事件，当li被点击时，会触发某一个事件处理函数（可以调用其它的函数）；
+                */
+            }
+            $(".pageLi").click(function(){
+                var page = $(this).index();
+                $(this).addClass("active").siblines().removeClass("active");
+                getPage(page);
+            })
+        })
+   // </script>
+
+```
+
+    1.获取数据总数
+    2.根据数据总数，生成分页条
+    3.为分页条，按钮添加点击事件
+    4.事件处理函数
+
+**点击按钮刷新页面时，需要将将前一次点击刷出来的内容清楚掉**事件函数执行后，原来的按钮刷出来的内容并没有消失，即你越点击，页面会越长； 但此处页面有一个坑点: 
+**页面内容清除的瞬间，页面会向上弹**，感觉是在刷新整个页面，但实际上刷新的只有局部，这样用户体验很不好；原因在于区域没高，ajax页面刷新时，瞬间消失了；解决办法是给#shuoshuo加一个高，这样当期内部内容全部消失时，其有个高撑着，也不会向上弹；
+
+```html
+    #shuoshuo{
+        height:500px;
+    }
+```
+
+**current active** , $(this).addClass("active").siblines().removeClass("active");
+
+
+```js
+    getPage(0);
+    //页面初次加载的时候，会调用getPage(0);
+    function getPage(page){
+        $("#shuoshuo").html("");
+        //点击按钮刷新页面时，需要将将前一次点击刷出来的内容清楚掉
+        var compiled = _.template($("#moban").val());
+        $.get("/allshuoshuo?page="+page,function(result){
+                iterator(0);
+                function iterator(i){
+                    if(i==result.result[i].length){
+                        return;
+                    }
+                    $.get("/userinfo",function(result2){
+                        result.result[i].avartar=result2.result.avartar;
+                        var html = compiled(result.result[i]);
+                        $("#shuoshuo").append($(html));
+                        iterator(i++);
+                    })
+                }
+        })
+    }
+      
+
+```
